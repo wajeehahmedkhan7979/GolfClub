@@ -413,17 +413,16 @@ This project is a **single-file Selenium booking automation script** for Norther
 The script should be practical, minimal, and resilient rather than abstract or over-engineered.
 
 
-## 10) Latest Architectural Update
+## 10) Latest Architectural Update: Partner-Aware Release-Time Watcher
 
-The actual system model is a nested traversal system:
-EVENT LIST PAGE -> OPEN EVENT -> TEE SHEET PAGE -> BOOK GROUP SLOT -> BOOKING CONFIRM PAGE -> CONFIRM BOOKING BUTTON -> REDIRECT -> RETURN TO EVENT LIST
+The architecture is now optimized as a **partner-aware release-time event watcher + multi-strategy booking executor**.
 
-Correct Architecture rules:
-1. Two independent traversals: `collect_open_events()` and `collect_booking_rows()`.
-2. OPEN_LINKS are navigation objects, not booking objects.
-3. Simplify time ranking: pick the first available BOOK GROUP row (time targeting can be added later).
-4. Verify success via redirect URL (`open/event.msp`) rather than weak page state.
-5. Do not use `driver.back()`. Instead, reload the event list URL (`driver.get(EVENT_LIST_URL)`).
+### System Model & Priority Chain
+When scanning the tee sheet:
+1. **Priority 1 (JOIN_PARTNERS)**: If preferred partners (`Forrest, Drew`, `Forrest, Jack`, or `Candiloro, Dom`) are found in a row with a `BOOK GROUP` button (meaning only 1 slot is left to book), click it to join their group. Dismiss the partner addition modal (click 'No') and confirm booking.
+2. **Priority 2 (ALREADY_COMPLETE)**: If the client (`Cuthbertson, Aaron`) AND at least 2 partners are found in the same row, all members are already booked together. Flag this via a successful outcome status and exit.
+3. **Priority 3 (CLIENT_ALONE)**: If the client is booked in a row but partners are not, raise a warning flag for manual intervention (client is already booked elsewhere).
+4. **Priority 4 (BOOK_FRESH)**: If no partners/client are on the sheet, search for the first empty `BOOK GROUP` in the `08:00 - 10:00` range, click it, accept the partners modal (click 'Yes'), fill out the form fields with all 3 partners' details, and confirm booking.
 
-State Machine Workflow:
-INIT -> LOGIN -> OPEN_EVENT_LIST -> COLLECT_EVENTS -> OPEN_EVENT -> COLLECT_TEE_ROWS -> BOOK_FIRST_AVAILABLE -> CONFIRM_BOOKING -> VERIFY_SUCCESS -> RETURN_TO_EVENT_LIST -> NEXT_EVENT -> DONE
+### State Machine Workflow
+`INIT` -> `LOGIN` -> `OPEN_EVENT_LIST` -> `WAIT_FOR_SATURDAY_OPEN` -> `OPEN_SATURDAY_EVENT` -> `SCAN_TEE_SHEET` -> `CLICK_BOOK_GROUP` -> `HANDLE_PARTNERS_MODAL` -> `CONFIRM_BOOKING` -> `VERIFY_SUCCESS` -> `DONE`
